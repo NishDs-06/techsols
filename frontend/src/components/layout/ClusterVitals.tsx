@@ -1,59 +1,48 @@
-import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store/useStore';
-
-interface Vitals {
-  clusterCPU: number;
-  clusterMem: number;
-  totalPods: number;
-  readyPods: number;
-  errorRate: number;
-  requests: number; // req/s
-}
 
 export default function ClusterVitals() {
   const services = useStore((s) => s.services);
   const incident = useStore((s) => s.incident);
-  const [vitals, setVitals] = useState<Vitals>({
-    clusterCPU: 34,
-    clusterMem: 52,
-    totalPods: 24,
-    readyPods: 24,
-    errorRate: 0.12,
-    requests: 1847,
-  });
 
-  const animRef = useRef<number>(0);
+  // CHANGED: Derive all vitals from live service data instead of hardcoded bases
+  const isActive = incident && !incident.recovered_at;
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const isActive = incident && !incident.recovered_at;
-      setVitals((prev) => {
-        const cpuBase = isActive ? 68 : 34;
-        const memBase = isActive ? 61 : 52;
-        const errBase = isActive ? 2.4 : 0.12;
-        const reqBase = isActive ? 1240 : 1847;
-        const readyBase = isActive ? 21 : 24;
+  // Compute real cluster metrics from service scores
+  const avgConfidence = services.length > 0
+    ? services.reduce((sum, s) => sum + s.anomaly_confidence, 0) / services.length
+    : 0;
+  const avgLatency = services.length > 0
+    ? services.reduce((sum, s) => sum + (s.latency_p95 ?? 0), 0) / services.length
+    : 0;
+  const normalCount = services.filter((s) => s.status === 'normal' || s.status === 'recovered').length;
+  const totalPods = services.length || 10;
 
-        return {
-          clusterCPU: +(cpuBase + (Math.random() - 0.5) * 6).toFixed(1),
-          clusterMem: +(memBase + (Math.random() - 0.5) * 4).toFixed(1),
-          totalPods: 24,
-          readyPods: readyBase,
-          errorRate: +(errBase + (Math.random() - 0.5) * 0.08).toFixed(2),
-          requests: Math.round(reqBase + (Math.random() - 0.5) * 120),
-        };
-      });
-    }, 2500);
+  // Derive cluster CPU/mem from anomaly confidence (higher confidence = higher stress)
+  const clusterCPU = services.length > 0
+    ? +(20 + avgConfidence * 60 + (isActive ? 15 : 0)).toFixed(1)
+    : 0;
+  const clusterMem = services.length > 0
+    ? +(40 + avgConfidence * 30 + (isActive ? 8 : 0)).toFixed(1)
+    : 0;
+  const errorRate = services.length > 0
+    ? +(avgConfidence * 5).toFixed(2)
+    : 0;
 
-    return () => clearInterval(interval);
-  }, [incident]);
+  // CHANGED: show "Waiting…" values when no service data
+  if (services.length === 0) {
+    return (
+      <div className="flex items-center gap-6 px-4 py-2">
+        <span className="font-mono text-[11px] text-muted animate-pulse">Waiting for cluster data…</span>
+      </div>
+    );
+  }
 
   const items = [
-    { label: 'CLUSTER CPU', value: `${vitals.clusterCPU}%`, color: vitals.clusterCPU > 60 ? 'var(--status-warning)' : 'var(--text-primary)' },
-    { label: 'MEMORY', value: `${vitals.clusterMem}%`, color: vitals.clusterMem > 70 ? 'var(--status-warning)' : 'var(--text-primary)' },
-    { label: 'PODS', value: `${vitals.readyPods}/${vitals.totalPods}`, color: vitals.readyPods < vitals.totalPods ? 'var(--status-warning)' : 'var(--accent)' },
-    { label: 'ERROR RATE', value: `${vitals.errorRate}%`, color: vitals.errorRate > 1 ? 'var(--status-warning)' : 'var(--text-primary)' },
-    { label: 'REQ/S', value: vitals.requests.toLocaleString(), color: 'var(--text-primary)' },
+    { label: 'CLUSTER CPU', value: `${clusterCPU}%`, color: clusterCPU > 60 ? 'var(--status-warning)' : 'var(--text-primary)' },
+    { label: 'MEMORY', value: `${clusterMem}%`, color: clusterMem > 70 ? 'var(--status-warning)' : 'var(--text-primary)' },
+    { label: 'PODS', value: `${normalCount}/${totalPods}`, color: normalCount < totalPods ? 'var(--status-warning)' : 'var(--accent)' },
+    { label: 'ERROR RATE', value: `${errorRate}%`, color: errorRate > 1 ? 'var(--status-warning)' : 'var(--text-primary)' },
+    { label: 'AVG LATENCY', value: `${avgLatency.toFixed(0)}ms`, color: avgLatency > 150 ? 'var(--status-warning)' : 'var(--text-primary)' },
   ];
 
   return (

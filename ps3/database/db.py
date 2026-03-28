@@ -7,7 +7,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/ps3")
+DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@100.96.255.69:5432/ps3")
 
 def get_conn():
     return psycopg2.connect(DB_URL)

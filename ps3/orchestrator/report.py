@@ -34,7 +34,9 @@ Be concise. Use exact numbers from the data."""
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
         from reportlab.lib.styles import getSampleStyleSheet
 
-        filename = f"/tmp/incident_{incident['incident_id'].replace(':', '-')}.pdf"
+        docs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docs")
+        os.makedirs(docs_dir, exist_ok=True)
+        filename = os.path.join(docs_dir, f"incident_{incident['incident_id'].replace(':', '-')}.pdf")
         doc = SimpleDocTemplate(filename, pagesize=A4)
         styles = getSampleStyleSheet()
         story = []

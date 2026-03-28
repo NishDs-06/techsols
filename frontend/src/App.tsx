@@ -4,6 +4,7 @@ import NodeDetail from './pages/NodeDetail';
 import AlertsFeed from './pages/AlertsFeed';
 import IncidentDetail from './pages/IncidentDetail';
 import BottomNav from './components/layout/BottomNav';
+import RecoveryToast from './components/incident/RecoveryToast';
 import { useOrchestrator } from './hooks/useOrchestrator';
 
 function App() {
@@ -12,6 +13,8 @@ function App() {
   return (
     <BrowserRouter>
       <div className="w-screen h-screen flex flex-col bg-base overflow-hidden">
+        {/* ADDED: Global recovery toast notification */}
+        <RecoveryToast />
         <main className="flex-1 w-full relative min-h-0">
           <Routes>
             <Route path="/" element={<Dashboard />} />
@@ -28,3 +31,4 @@ function App() {
 }
 
 export default App;
+

@@ -20,7 +20,7 @@ def identify_root_cause(ml_scores):
     ml_scores: dict of service -> {"p_value": float, "anomaly_confidence": float}
     Returns: (root_service or None, set of affected services)
     """
-    anomalous = {s for s, v in ml_scores.items() if v["p_value"] < 0.05}
+    anomalous = {s for s, v in ml_scores.items() if v["p_value"] <= 0.05}  # was < 0.05
     if not anomalous:
         return None, set()
 

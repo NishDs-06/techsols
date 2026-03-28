@@ -18,7 +18,7 @@ export default function ServiceHealthList() {
         <div className="flex flex-col">
           {sorted.map((svc) => {
             const isCritical = ['root', 'critical'].includes(svc.status);
-            
+
             let rowBg = 'transparent';
             if (svc.status === 'root') rowBg = 'rgba(220,38,38,0.04)';
             if (svc.status === 'warning') rowBg = 'rgba(245,158,11,0.03)';
@@ -51,7 +51,7 @@ export default function ServiceHealthList() {
                   {(svc.anomaly_confidence * 100).toFixed(0)}%
                 </span>
                 <span className="font-mono text-[12px] tabular-nums w-[52px] text-right" style={{ color: latColor, fontWeight: latWeight }}>
-                  {svc.latency_p95.toFixed(0)}ms
+                  {svc.latency_p95?.toFixed(0) ?? '0'}ms
                 </span>
               </div>
             );

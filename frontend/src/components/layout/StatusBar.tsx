@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 
 export default function StatusBar() {
   const services = useStore((s) => s.services);
+  const connected = useStore((s) => s.connected);
   const incident = useStore((s) => s.incident);
   const bandwidthData = useStore((s) => s.bandwidthData);
   const [elapsed, setElapsed] = useState(0);
@@ -39,11 +40,13 @@ export default function StatusBar() {
           <div
             className={cn(
               'w-2 h-2 rounded-full transition-colors duration-500',
-              hasActiveIncident ? 'bg-status-root animate-pulse-dot' : anyWarning ? 'bg-status-warning' : 'bg-accent'
+              !connected ? 'bg-status-warning animate-pulse-dot' :
+                hasActiveIncident ? 'bg-status-root animate-pulse-dot' : anyWarning ? 'bg-status-warning' : 'bg-accent'
             )}
           />
+          {/* CHANGED: show connection status when disconnected */}
           <span className="font-mono text-[12px] font-medium tabular-nums text-muted">
-            {onlineCount}/{totalCount} online
+            {connected ? `${onlineCount}/${totalCount} online` : 'connecting…'}
           </span>
         </div>
         <div className="flex items-center gap-5 font-mono text-[12px] font-medium tabular-nums text-primary">
@@ -58,7 +61,7 @@ export default function StatusBar() {
           {hasActiveIncident ? (
             <span className="text-status-root font-semibold tracking-wide lowercase">ACTIVE</span>
           ) : (
-            <span className="lowercase">4m ago</span>
+            <span className="lowercase">—</span>
           )}
         </span>
 
@@ -70,9 +73,11 @@ export default function StatusBar() {
             SLA: {elapsed.toFixed(1)}s / 15s
           </span>
         ) : incident?.actual_seconds ? (
+          /* CHANGED: show real SLA from incident data, not hardcoded 14.2s */
           <span className="text-accent tabular-nums">SLA: {incident.actual_seconds}s ✓</span>
         ) : (
-          <span className="text-accent tabular-nums">SLA: 14.2s ✓</span>
+          /* CHANGED: show dash instead of hardcoded "14.2s ✓" */
+          <span className="text-muted tabular-nums">SLA: —</span>
         )}
 
         <div className="w-[1px] h-[14px] bg-border" />

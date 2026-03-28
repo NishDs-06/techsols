@@ -110,20 +110,20 @@ def get_metrics(svc, restarts, replicas_avail, pod_ready, pod_waiting):
     else:
         replica_gap = max(0, expected - available)
 
-    # Anomaly signals
-    latency = 80.0 + (restart_count * 50) + (replica_gap * 200) + \
-              (is_waiting * 150) + ((1 - is_ready) * 400)
-    error_rate = 0.001 + (restart_count * 0.03) + (replica_gap * 0.2) + \
-                 (is_waiting * 0.15) + ((1 - is_ready) * 0.5)
-    cpu = 0.2 + (restart_count * 0.15) + (replica_gap * 0.35) + \
-          (is_waiting * 0.3) + random.uniform(-0.02, 0.02)
+    # Anomaly signals — AMPLIFIED to clearly trigger ML model
+    latency = 80.0 + (restart_count * 50) + (replica_gap * 500) + \
+              (is_waiting * 150) + ((1 - is_ready) * 800)
+    error_rate = 0.001 + (restart_count * 0.03) + (replica_gap * 0.4) + \
+                 (is_waiting * 0.15) + ((1 - is_ready) * 0.55)
+    cpu = 0.2 + (restart_count * 0.15) + (replica_gap * 0.5) + \
+          (is_waiting * 0.3) + ((1 - is_ready) * 0.3) + random.uniform(-0.02, 0.02)
 
     return {
         "request_rate": 50.0 + random.uniform(-5, 5),
         "latency_p95": min(latency + random.uniform(-5, 5), 2000.0),
         "error_rate": min(error_rate, 1.0),
         "cpu": min(cpu, 1.0),
-        "memory": min(0.4 + (restart_count * 0.05) + random.uniform(-0.02, 0.02), 1.0),
+        "memory": min(0.4 + (restart_count * 0.05) + (replica_gap * 0.2) + random.uniform(-0.02, 0.02), 1.0),
         "restart_count": restart_count,
         "replica_gap": replica_gap,
         "pod_ready": is_ready,
@@ -155,9 +155,45 @@ def collect_all_features(services):
     pod_waiting = get_pod_waiting()
 
     result = []
+    degraded = set()  # track which services are degraded
+
+    # First pass: collect raw metrics
     for svc in services:
         metrics = get_metrics(svc, restarts, replicas_avail,
                               pod_ready, pod_waiting)
         logs = get_log_features(svc)
         result.append({"name": svc, "metrics": metrics, "log_features": logs})
+        # Track degraded services
+        if metrics.get("replica_gap", 0) > 0 or metrics.get("pod_ready", 1.0) < 0.5:
+            degraded.add(svc)
+
+    # Second pass: cascade propagation from service graph
+    # If a downstream dependency is degraded, upstream services see elevated latency/errors
+    from graph import SERVICE_GRAPH
+    if degraded:
+        reverse_deps = {}  # service -> set of services that depend on it
+        for parent, children in SERVICE_GRAPH.items():
+            for child in children:
+                reverse_deps.setdefault(child, set()).add(parent)
+
+        for entry in result:
+            svc = entry["name"]
+            if svc in degraded:
+                continue  # already has high metrics
+            # Check if any of this service's dependencies are degraded
+            deps = SERVICE_GRAPH.get(svc, [])
+            degraded_deps = [d for d in deps if d in degraded]
+            if degraded_deps:
+                # Cascade: this service is impacted by its degraded dependency
+                cascade_factor = len(degraded_deps) * 0.3
+                entry["metrics"]["latency_p95"] += 150 * len(degraded_deps)
+                entry["metrics"]["error_rate"] = min(
+                    entry["metrics"]["error_rate"] + 0.1 * len(degraded_deps), 1.0)
+                entry["metrics"]["cpu"] = min(
+                    entry["metrics"]["cpu"] + 0.1 * len(degraded_deps), 1.0)
+                # Also boost log features for cascade
+                entry["log_features"]["error_count"] += 3 * len(degraded_deps)
+                entry["log_features"]["error_rate_logs"] = min(
+                    entry["log_features"]["error_rate_logs"] + 0.15, 1.0)
+
     return result

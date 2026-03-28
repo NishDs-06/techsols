@@ -10,6 +10,11 @@ export default function IncidentStrip() {
 
   const isActive = incident && !incident.recovered_at;
 
+  // ADDED: Phase detection — same logic as SLATimer
+  const hasRemediation = incident?.remediation_started_at != null;
+  const isPhase1 = isActive && !hasRemediation;
+  const isPhase2 = isActive && hasRemediation;
+
   useEffect(() => {
     if (!isActive || !incident) return;
     const start = new Date(incident.injected_at).getTime();
@@ -29,6 +34,9 @@ export default function IncidentStrip() {
     : `${elapsed.toFixed(1)}s`;
   const slaColor = elapsed <= 15 ? 'var(--accent)' : 'var(--accent-breach)';
 
+  // CHANGED: Phase-aware border and accent color
+  const stripBorderColor = isPhase2 ? '#22C55E' : 'var(--status-root)';
+
   return (
     <AnimatePresence>
       {isActive && (
@@ -38,12 +46,21 @@ export default function IncidentStrip() {
           exit={{ y: 60, opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
           onClick={() => navigate(`/incident/${incident.incident_id}`)}
-          className="w-full shrink-0 bg-surface border-t-2 border-status-root px-8 py-3.5 flex items-center gap-6 cursor-pointer select-none hover:bg-elevated transition-colors"
+          className="w-full shrink-0 bg-surface border-t-2 px-8 py-3.5 flex items-center gap-6 cursor-pointer select-none hover:bg-elevated transition-colors"
+          style={{ borderTopColor: stripBorderColor }}
         >
-          {/* Root cause badge */}
+          {/* CHANGED: Phase-aware status badge */}
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-status-root animate-pulse-dot" />
-            <span className="font-sora text-[11px] font-semibold text-status-root tracking-wide">ROOT CAUSE</span>
+            <div
+              className="w-2 h-2 rounded-full animate-pulse-dot"
+              style={{ backgroundColor: isPhase2 ? '#22C55E' : 'var(--status-root)' }}
+            />
+            <span
+              className="font-sora text-[11px] font-semibold tracking-wide"
+              style={{ color: isPhase2 ? '#22C55E' : 'var(--status-root)' }}
+            >
+              {isPhase1 ? 'DETECTING · RCA IN PROGRESS' : 'RCA COMPLETE · STABILIZING'}
+            </span>
           </div>
           <span className="font-mono text-[12px] text-primary font-medium">{incident.root_service}</span>
 
@@ -56,7 +73,7 @@ export default function IncidentStrip() {
           <div className="w-[1px] h-4 bg-border" />
 
           <span className="font-mono text-[11px] text-muted">
-            action: <span className="text-primary">{incident.applied_action}</span> → {incident.remediation_detail.split(' ').slice(-2).join(' ')}
+            action: <span className="text-primary">{incident.applied_action}</span> → {incident.remediation_detail?.split(' ').slice(-2).join(' ') ?? ''}
           </span>
 
           <div className="w-[1px] h-4 bg-border" />
@@ -68,11 +85,10 @@ export default function IncidentStrip() {
 
           {/* Live SLA counter — right aligned */}
           <div className="ml-auto flex items-center gap-3">
-            {/* Live counting seconds */}
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] tracking-[0.1em] text-muted uppercase">SLA</span>
               <div className="flex items-center gap-1.5">
-                <div 
+                <div
                   className="w-[5px] h-[5px] rounded-full animate-pulse-dot"
                   style={{ backgroundColor: slaColor }}
                 />
