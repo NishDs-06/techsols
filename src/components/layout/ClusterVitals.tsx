@@ -49,11 +49,11 @@ export default function ClusterVitals() {
   }, [incident]);
 
   const items = [
-    { label: 'CLUSTER CPU', value: `${vitals.clusterCPU}%`, warn: vitals.clusterCPU > 60 },
-    { label: 'MEMORY', value: `${vitals.clusterMem}%`, warn: vitals.clusterMem > 70 },
-    { label: 'PODS', value: `${vitals.readyPods}/${vitals.totalPods}`, warn: vitals.readyPods < vitals.totalPods },
-    { label: 'ERROR RATE', value: `${vitals.errorRate}%`, warn: vitals.errorRate > 1 },
-    { label: 'REQ/S', value: vitals.requests.toLocaleString(), warn: false },
+    { label: 'CLUSTER CPU', value: `${vitals.clusterCPU}%`, color: vitals.clusterCPU > 60 ? 'var(--status-warning)' : 'var(--text-primary)' },
+    { label: 'MEMORY', value: `${vitals.clusterMem}%`, color: vitals.clusterMem > 70 ? 'var(--status-warning)' : 'var(--text-primary)' },
+    { label: 'PODS', value: `${vitals.readyPods}/${vitals.totalPods}`, color: vitals.readyPods < vitals.totalPods ? 'var(--status-warning)' : 'var(--accent)' },
+    { label: 'ERROR RATE', value: `${vitals.errorRate}%`, color: vitals.errorRate > 1 ? 'var(--status-warning)' : 'var(--text-primary)' },
+    { label: 'REQ/S', value: vitals.requests.toLocaleString(), color: 'var(--text-primary)' },
   ];
 
   return (
@@ -61,10 +61,10 @@ export default function ClusterVitals() {
       {items.map((item, i) => (
         <div key={item.label} className="flex items-center gap-2">
           {i > 0 && <div className="w-[1px] h-[14px] bg-border mr-2" />}
-          <span className="font-mono text-[9px] tracking-[0.12em] text-muted">{item.label}</span>
+          <span className="font-mono text-[9px] tracking-[0.14em] text-muted uppercase">{item.label}</span>
           <span
-            className="font-mono text-[11px] tabular-nums font-medium transition-colors duration-500"
-            style={{ color: item.warn ? 'var(--status-warning)' : 'var(--text-primary)' }}
+            className="font-mono text-[13px] font-medium tabular-nums transition-colors duration-500"
+            style={{ color: item.color }}
           >
             {item.value}
           </span>

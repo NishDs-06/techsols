@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store/useStore';
+import { motion } from 'framer-motion';
 
 const SLA_TARGET = 15;
-const CIRCLE_RADIUS = 38;
-const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
 
 export default function SLATimer() {
   const incident = useStore((s) => s.incident);
@@ -45,94 +44,103 @@ export default function SLATimer() {
   const displaySeconds = isResolved && incident?.actual_seconds
     ? incident.actual_seconds
     : elapsed;
-  const progress = Math.min(displaySeconds / SLA_TARGET, 1);
   const remaining = Math.max(0, SLA_TARGET - displaySeconds);
   const isBreach = displaySeconds > SLA_TARGET;
   const isPass = isResolved && !isBreach;
 
   // Colors
-  const progressColor = isBreach
-    ? 'var(--accent-breach)'
-    : isPass
-      ? 'var(--accent)'
-      : displaySeconds > 12
-        ? 'var(--status-warning)'
-        : 'var(--accent)';
-
-  const strokeDashoffset = CIRCLE_CIRCUMFERENCE * (1 - progress);
-
-  // Don't render if no incident at all
-  if (!incident) return null;
+  const progressColor = !incident
+    ? 'var(--text-muted)'
+    : isBreach
+      ? 'var(--accent-breach)'
+      : isPass
+        ? 'var(--accent)'
+        : displaySeconds > 12
+          ? 'var(--status-warning)'
+          : 'var(--accent)';
 
   return (
-    <div className="flex flex-col items-center justify-center gap-1 select-none">
+    <div className="flex flex-col items-center select-none gap-[6px]">
       {/* Header */}
-      <div className="flex items-center justify-between w-full px-1 mb-1">
-        <span className="font-mono text-[10px] tracking-[0.1em] text-muted uppercase">SLA Timer</span>
-        <span className="font-mono text-[10px] text-muted">Target: {SLA_TARGET}s</span>
+      <div className="flex items-center justify-between w-full mb-[4px] shrink-0">
+        <span className="font-mono text-[9px] tracking-[0.06em] text-muted uppercase whitespace-nowrap">SLA Timer</span>
+        <span className="font-mono text-[9px] tracking-[0.06em] text-muted uppercase whitespace-nowrap">Target 15s</span>
       </div>
 
-      {/* Circle + Counter */}
-      <div className="relative flex items-center justify-center" style={{ width: 92, height: 92 }}>
-        {/* Background ring */}
+      {/* SVG Container */}
+      <div className="relative flex items-center justify-center w-[140px] h-[140px] shrink-0">
         <svg
-          width={92}
-          height={92}
-          viewBox="0 0 92 92"
+          width="140"
+          height="140"
+          viewBox="0 0 140 140"
           className="absolute inset-0"
-          style={{ transform: 'rotate(-90deg)' }}
         >
-          <circle
-            cx={46}
-            cy={46}
-            r={CIRCLE_RADIUS}
-            fill="none"
-            stroke="var(--border)"
-            strokeWidth={3}
-          />
-          <circle
-            cx={46}
-            cy={46}
-            r={CIRCLE_RADIUS}
-            fill="none"
-            stroke={progressColor}
-            strokeWidth={3}
-            strokeDasharray={CIRCLE_CIRCUMFERENCE}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-            style={{ transition: 'stroke 400ms ease, stroke-dashoffset 150ms linear' }}
-          />
+          {/* Dots */}
+          {Array.from({ length: 12 }).map((_, i) => {
+            const angle = (i / 12) * 2 * Math.PI - Math.PI / 2;
+            const x = 70 + 58 * Math.cos(angle);
+            const y = 70 + 58 * Math.sin(angle);
+            const isLit = i < Math.ceil((Math.min(displaySeconds, 15) / 15) * 12);
+
+            return (
+              <circle
+                key={i}
+                cx={x}
+                cy={y}
+                r={isLit ? 3.5 : 2.5}
+                fill={isLit ? progressColor : 'var(--border)'}
+                style={{ 
+                  transition: 'fill 400ms ease, r 150ms ease, filter 200ms ease',
+                  filter: isActive && isLit ? `drop-shadow(0 0 5px ${progressColor})` : 'none'
+                }}
+              />
+            );
+          })}
         </svg>
 
-        {/* Center text */}
-        <div className="flex flex-col items-center z-10">
-          <span
+        {/* Center content overlay */}
+        <div className="flex flex-col items-center justify-center z-10 absolute inset-0">
+          <motion.span
+            key={Math.floor(displaySeconds)}
+            animate={{ scale: [1, 1.06, 1] }}
+            transition={{ duration: 0.15 }}
             className="font-mono font-bold tabular-nums leading-none"
             style={{
-              fontSize: displaySeconds >= 10 ? '22px' : '24px',
+              fontSize: displaySeconds < 10 ? '32px' : '28px',
               color: progressColor,
             }}
           >
-            {displaySeconds.toFixed(1)}s
-          </span>
+            {Math.floor(displaySeconds)}s
+          </motion.span>
+          <span className="font-mono text-[10px] text-muted mt-[2px] tabular-nums">/ 15s</span>
         </div>
       </div>
 
       {/* Status label */}
-      <div className="flex flex-col items-center gap-0.5 mt-0.5">
-        {isActive && (
-          <span className="font-mono text-[10px] text-muted">
-            {remaining > 0 ? `${remaining.toFixed(1)}s remaining` : 'SLA exceeded'}
+      <div className="flex flex-col items-center mt-[6px] shrink-0">
+        {!incident && (
+          <span className="font-mono text-[10px] text-muted uppercase font-medium">
+            Waiting for Anomaly
           </span>
         )}
-        {isPass && (
-          <span className="font-mono text-[10px] text-accent font-semibold tracking-wide">
-            ✓ WITHIN SLA
+        {isActive && !isBreach && (
+          <span className="font-mono text-[10px] text-muted tabular-nums">
+            {remaining.toFixed(1)}s remaining
+          </span>
+        )}
+        {isActive && isBreach && (
+          <span className="font-mono text-[10px] uppercase font-medium" style={{ color: 'var(--accent-breach)' }}>
+            SLA Exceeded
+          </span>
+        )}
+        {isResolved && isPass && (
+          <span className="font-mono text-[10px] font-medium uppercase" style={{ color: 'var(--accent)' }}>
+            ✓ Within SLA
           </span>
         )}
         {isResolved && isBreach && (
-          <span className="font-mono text-[10px] font-semibold tracking-wide" style={{ color: 'var(--accent-breach)' }}>
-            ✕ SLA BREACHED
+          <span className="font-mono text-[10px] font-medium uppercase" style={{ color: 'var(--accent-breach)' }}>
+            ✕ SLA Breached
           </span>
         )}
       </div>

@@ -16,7 +16,6 @@ export default function StatusBar() {
 
   const latest = bandwidthData[bandwidthData.length - 1] || { in: 0, out: 0 };
 
-  // Live SLA elapsed counter
   useEffect(() => {
     if (!hasActiveIncident || !incident) return;
     const start = new Date(incident.injected_at).getTime();
@@ -26,46 +25,43 @@ export default function StatusBar() {
     return () => clearInterval(id);
   }, [hasActiveIncident, incident]);
 
-  // Live clock
   useEffect(() => {
     const id = setInterval(() => setClock(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
   return (
-    <div className="w-full h-[40px] px-8 flex items-center justify-between border-b border-border bg-base select-none">
+    <div className="w-full h-[44px] px-8 flex items-center justify-between border-b border-border bg-base select-none">
       <div className="flex items-center gap-8">
-        <span className="font-sora text-[13px] font-semibold tracking-[0.15em] text-primary">SENTINEL</span>
+        <span className="font-sora text-[14px] font-bold tracking-[0.18em] text-primary uppercase">SENTINEL</span>
         <div className="w-[1px] h-[16px] bg-border" />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-[14px]">
           <div
             className={cn(
               'w-2 h-2 rounded-full transition-colors duration-500',
               hasActiveIncident ? 'bg-status-root animate-pulse-dot' : anyWarning ? 'bg-status-warning' : 'bg-accent'
             )}
           />
-          <span className="font-mono text-[12px] text-muted">
+          <span className="font-mono text-[12px] font-medium tabular-nums text-muted">
             {onlineCount}/{totalCount} online
           </span>
         </div>
-        <div className="flex items-center gap-5 font-mono text-[12px] text-muted">
+        <div className="flex items-center gap-5 font-mono text-[12px] font-medium tabular-nums text-primary">
           <span>↑ {latest.out.toFixed(1)} GB/s</span>
           <span>↓ {latest.in.toFixed(1)} GB/s</span>
         </div>
       </div>
 
-      <div className="flex items-center gap-6 font-mono text-[12px]">
-        {/* Last anomaly / Active indicator */}
-        <span className="text-muted">
+      <div className="flex items-center gap-6 font-mono text-[12px] font-medium">
+        <span className="text-muted tabular-nums uppercase tracking-[0.14em]" style={{ fontSize: '10px' }}>
           last anomaly:{' '}
           {hasActiveIncident ? (
-            <span className="text-status-root font-semibold tracking-wide">ACTIVE</span>
+            <span className="text-status-root font-semibold tracking-wide lowercase">ACTIVE</span>
           ) : (
-            '4m ago'
+            <span className="lowercase">4m ago</span>
           )}
         </span>
 
-        {/* Live SLA or last SLA */}
         {hasActiveIncident ? (
           <span
             className="font-semibold tabular-nums"
@@ -74,15 +70,14 @@ export default function StatusBar() {
             SLA: {elapsed.toFixed(1)}s / 15s
           </span>
         ) : incident?.actual_seconds ? (
-          <span className="text-accent">SLA: {incident.actual_seconds}s ✓</span>
+          <span className="text-accent tabular-nums">SLA: {incident.actual_seconds}s ✓</span>
         ) : (
-          <span className="text-accent">SLA: 14.2s ✓</span>
+          <span className="text-accent tabular-nums">SLA: 14.2s ✓</span>
         )}
 
         <div className="w-[1px] h-[14px] bg-border" />
 
-        {/* Live clock */}
-        <span className="text-muted tabular-nums text-[11px]">
+        <span className="text-muted tabular-nums text-[11px] tracking-[0.06em]">
           {clock.toLocaleTimeString()}
         </span>
       </div>

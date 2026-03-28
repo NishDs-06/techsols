@@ -213,11 +213,11 @@ export default function TopologyMap() {
                 style={{ transition: 'fill 500ms ease' }}
               />
               {/* Confidence value */}
-              <text y={-2} textAnchor="middle" fill="var(--bg-base)" fontSize={10} className="font-mono font-bold pointer-events-none">
+              <text y={-2} textAnchor="middle" fill="var(--bg-base)" fontSize="10" fontFamily="DM Mono" fontWeight="700" className="pointer-events-none">
                 {(conf * 100).toFixed(0)}%
               </text>
               {/* Service name */}
-              <text y={r + 16} textAnchor="middle" fill="var(--text-primary)" fontSize={11} className="font-sora font-medium pointer-events-none tracking-wide">
+              <text y={r + 16} textAnchor="middle" fill="var(--text-primary)" fontSize="11" fontFamily="Sora" fontWeight="500" className="pointer-events-none tracking-wide capitalize">
                 {node.id}
               </text>
             </g>
