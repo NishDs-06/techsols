@@ -59,6 +59,7 @@ async def orchestrator_loop():
     incident_active = False
     incident_start_ts = None
     last_root = None
+    cooldown_until = 0  # epoch seconds — ignore new incidents until this time
 
     while True:
         t_start = time.time()
@@ -69,20 +70,23 @@ async def orchestrator_loop():
             features = collect_all_features(list(state.service_scores.keys()))
 
             # 2. Call ML service
-            ml_scores = await call_ml_service(features, ts)
+            if not state.chaos_active:
+                ml_scores = await call_ml_service(features, ts)
 
-            # 3. Update shared state
-            for svc_data in ml_scores:
-                svc = svc_data["name"]
-                confidence = 1 - svc_data["p_value"]
-                state.service_scores[svc] = {
-                    "p_value": svc_data["p_value"],
-                    "anomaly_confidence": confidence,
-                    "final_score": svc_data["final_score"],
-                    "status": score_to_status(confidence),
-                    "metrics": next(
-                        (f["metrics"] for f in features if f["name"] == svc), {})
-                }
+                # 3. Update shared state
+                for svc_data in ml_scores:
+                    svc = svc_data["name"]
+                    confidence = 1 - svc_data["p_value"]
+                    state.service_scores[svc] = {
+                        "p_value": svc_data["p_value"],
+                        "anomaly_confidence": confidence,
+                        "final_score": svc_data["final_score"],
+                        "status": score_to_status(confidence),
+                        "metrics": next(
+                            (f["metrics"] for f in features if f["name"] == svc), {})
+                    }
+            else:
+                logger.info("Chaos active — skipping ML update to preserve injected anomaly")
 
             # 4. Broadcast heartbeat state
             await broadcast({
@@ -98,10 +102,12 @@ async def orchestrator_loop():
                 ]
             })
 
-            # 5. RCA
+            # 5. RCA — skip if in post-recovery cooldown
             ml_scores_dict = {s: state.service_scores[s]
                               for s in state.service_scores}
             root, affected = identify_root_cause(ml_scores_dict)
+            if time.time() < cooldown_until:
+                root = None  # suppress new incidents during cooldown
 
             # 6. If new root cause found → remediate + broadcast incident
             if root and root != last_root:
@@ -189,6 +195,7 @@ async def orchestrator_loop():
 
                     await broadcast({**state.latest_incident, "type": "incident"})
                     logger.info(f"System recovered in {actual}s")
+                    cooldown_until = time.time() + 120  # 2-min cooldown
                     # Generate PDF postmortem in background
                     asyncio.create_task(
                         generate_incident_report(dict(state.latest_incident))
@@ -270,6 +277,48 @@ def get_latest_incident():
 @app.get("/health")
 def health():
     return {"status": "ok", "connected_clients": len(connected_clients)}
+
+@app.post("/chaos/inject")
+def chaos_inject():
+    """Directly inject anomalous scores into paymentservice for testing."""
+    state.chaos_active = True
+    state.service_scores["paymentservice"].update({
+        "p_value": 0.01,
+        "anomaly_confidence": 0.99,
+        "final_score": 0.99,
+        "status": "critical",
+        "metrics": {
+            "latency_p95": 283.0,
+            "error_rate": 0.201,
+            "cpu": 0.55,
+            "restart_count": 0,
+            "replica_gap": 1,
+            "pod_ready": 1.0,
+        }
+    })
+    logger.info("Chaos injected: paymentservice marked anomalous")
+    return {"status": "injected", "service": "paymentservice"}
+
+@app.post("/chaos/recover")
+def chaos_recover():
+    """Reset paymentservice back to normal scores."""
+    state.chaos_active = False
+    state.service_scores["paymentservice"].update({
+        "p_value": 0.9,
+        "anomaly_confidence": 0.1,
+        "final_score": 0.1,
+        "status": "normal",
+        "metrics": {
+            "latency_p95": 80.0,
+            "error_rate": 0.001,
+            "cpu": 0.2,
+            "restart_count": 0,
+            "replica_gap": 0,
+            "pod_ready": 1.0,
+        }
+    })
+    logger.info("Chaos cleared: paymentservice reset to normal")
+    return {"status": "recovered", "service": "paymentservice"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):

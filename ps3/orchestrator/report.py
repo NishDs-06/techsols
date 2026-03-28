@@ -1,9 +1,17 @@
-import httpx, asyncio, json, logging, os
+import httpx, json, logging, os
 logger = logging.getLogger(__name__)
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+_done = False  # only ONE Gemini call ever, for the whole process lifetime
 
 async def generate_incident_report(incident: dict) -> str:
+    global _done
+    if _done:
+        logger.info("Report already generated this session — skipping")
+        return None
+    _done = True  # set immediately so no parallel task can slip through
+
     prompt = f"""You are an SRE writing a blameless postmortem report.
 
 Incident data:
@@ -21,15 +29,14 @@ Write a concise incident report with these sections:
 Keep it factual. No blame. Use the exact numbers from the incident data."""
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}",
+                f"{GEMINI_URL}?key={GEMINI_API_KEY}",
                 json={"contents": [{"parts": [{"text": prompt}]}]},
-                timeout=30
             )
-            text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+        r.raise_for_status()
+        text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
 
-        # Save as PDF
         from reportlab.lib.pagesizes import A4
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
         from reportlab.lib.styles import getSampleStyleSheet
@@ -37,23 +44,18 @@ Keep it factual. No blame. Use the exact numbers from the incident data."""
         filename = f"/tmp/incident_{incident['incident_id'].replace(':', '-')}.pdf"
         doc = SimpleDocTemplate(filename, pagesize=A4)
         styles = getSampleStyleSheet()
-        story = []
-
-        story.append(Paragraph(f"Incident Report", styles['Title']))
-        story.append(Paragraph(incident['incident_id'], styles['Normal']))
-        story.append(Spacer(1, 12))
-
+        story = [
+            Paragraph("Incident Report", styles['Title']),
+            Paragraph(incident['incident_id'], styles['Normal']),
+            Spacer(1, 12),
+        ]
         for line in text.split('\n'):
             if line.strip():
-                if line.strip()[0].isdigit() and '.' in line[:3]:
-                    story.append(Spacer(1, 8))
-                    story.append(Paragraph(line.strip(), styles['Heading2']))
-                else:
-                    story.append(Paragraph(line.strip(), styles['Normal']))
-                story.append(Spacer(1, 4))
+                style = styles['Heading2'] if (line.strip()[0].isdigit() and '.' in line[:3]) else styles['Normal']
+                story += [Paragraph(line.strip(), style), Spacer(1, 4)]
 
         doc.build(story)
-        logger.info(f"PDF report saved: {filename}")
+        logger.info(f"PDF saved: {filename}")
         return filename
 
     except Exception as e:

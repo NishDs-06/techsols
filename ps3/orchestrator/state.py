@@ -17,3 +17,6 @@ latest_incident = None
 # Baseline metrics — set during first few normal cycles
 baseline_metrics = {s: {"latency_p95": 80.0, "error_rate": 0.004,
                          "cpu": 0.20} for s in SERVICES}
+
+# Chaos override — when True the orchestrator loop skips ML score updates
+chaos_active = False
