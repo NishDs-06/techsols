@@ -48,9 +48,11 @@ def restart_pod(service_name):
     return {"action": "restart_pod", "service": service_name}
 
 def select_action(svc, ml_scores):
-    """CPU > 80% → scale_up. Otherwise → restart_pod."""
-    cpu = ml_scores.get(svc, {}).get("metrics", {}).get("cpu", 0)
-    if cpu > 0.80:
+    """replica_gap > 0 or CPU > 80% → scale_up. Otherwise → restart_pod."""
+    metrics = ml_scores.get(svc, {}).get("metrics", {})
+    cpu = metrics.get("cpu", 0)
+    replica_gap = metrics.get("replica_gap", 0)
+    if replica_gap > 0 or cpu > 0.80:
         return "scale_up"
     return "restart_pod"
 
