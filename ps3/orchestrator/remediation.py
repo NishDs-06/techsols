@@ -29,11 +29,11 @@ def scale_up(service_name, delta=2):
         return {"action": "scale_up", "service": service_name,
                 "from": 1, "to": 1 + delta, "simulated": True}
     dep = apps_v1.read_namespaced_deployment(service_name, NAMESPACE)
-    cur = dep.spec.replicas or 1
-    dep.spec.replicas = cur + delta
+    cur = dep.spec.replicas or 0
+    dep.spec.replicas = 1
     apps_v1.patch_namespaced_deployment(service_name, NAMESPACE, dep)
     return {"action": "scale_up", "service": service_name,
-            "from": cur, "to": cur + delta}
+            "from": cur, "to": 1}
 
 def restart_pod(service_name):
     _, core_v1 = _get_k8s_clients()

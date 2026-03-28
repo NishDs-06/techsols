@@ -230,10 +230,10 @@ def _fake_ml_scores(features):
         latency = m.get("latency_p95", 80)
         score = 0.05
         score += min(error_rate * 2.0, 0.6)
-        score += min(replica_gap * 0.4, 0.4)
+        score += min(replica_gap * 0.5, 0.5)
         score += (1 - pod_ready) * 0.3
         score += max(0, (latency - 200) / 1000)
-        score = min(score + random.uniform(-0.02, 0.02), 0.999)
+        score = min(score + random.uniform(0.01, 0.03), 0.999)
         result.append({
             "name": f["name"],
             "metric_score": score,
