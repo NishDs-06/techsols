@@ -1,7 +1,7 @@
-import httpx, asyncio, json, logging
+import httpx, asyncio, json, logging, os
 logger = logging.getLogger(__name__)
 
-GEMINI_API_KEY = "your-gemini-key-here"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 async def generate_incident_report(incident: dict) -> str:
     prompt = f"""You are an SRE writing a blameless postmortem report.
