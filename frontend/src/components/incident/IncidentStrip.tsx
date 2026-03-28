@@ -43,9 +43,9 @@ export default function IncidentStrip() {
           {/* Root cause badge */}
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-status-root animate-pulse-dot" />
-            <span className="font-sora text-[12px] font-semibold text-status-root tracking-wide">ROOT CAUSE</span>
+            <span className="font-sora text-[11px] font-semibold text-status-root tracking-wide">ROOT CAUSE</span>
           </div>
-          <span className="font-mono text-[13px] text-primary font-medium">{incident.root_service}</span>
+          <span className="font-mono text-[12px] text-primary font-medium">{incident.root_service}</span>
 
           <div className="w-[1px] h-4 bg-border" />
 
@@ -71,17 +71,23 @@ export default function IncidentStrip() {
             {/* Live counting seconds */}
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] tracking-[0.1em] text-muted uppercase">SLA</span>
-              <span
-                className="font-mono text-[15px] font-bold tabular-nums tracking-tight"
-                style={{ color: slaColor }}
-              >
-                {slaDisplay}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <div 
+                  className="w-[5px] h-[5px] rounded-full animate-pulse-dot"
+                  style={{ backgroundColor: slaColor }}
+                />
+                <span
+                  className="font-mono text-[16px] font-bold tabular-nums tracking-tight"
+                  style={{ color: slaColor }}
+                >
+                  {slaDisplay}
+                </span>
+              </div>
               <span className="font-mono text-[10px] text-muted">/ 15s</span>
             </div>
 
             {/* Mini progress bar */}
-            <div className="w-[60px] h-[4px] bg-elevated rounded-sm overflow-hidden">
+            <div className="w-[80px] h-[5px] bg-elevated rounded-sm overflow-hidden">
               <div
                 className="h-full rounded-sm transition-all duration-150"
                 style={{

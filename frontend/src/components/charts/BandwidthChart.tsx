@@ -6,8 +6,14 @@ export default function BandwidthChart() {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="px-6 pt-5 pb-2">
-        <span className="font-mono text-[11px] tracking-[0.1em] text-muted uppercase">Bandwidth · Live</span>
+      <div className="px-6 pt-5 pb-2 flex items-center">
+        <span className="font-mono text-[10px] tracking-[0.14em] text-muted uppercase">Bandwidth · Live</span>
+        <div 
+          className="ml-[6px] w-[12px] h-[12px] rounded-full border border-border flex items-center justify-center font-mono text-[8px] text-muted cursor-default shrink-0"
+          title="Network throughput in/out of the cluster. ↑ = outbound (egress), ↓ = inbound (ingress)"
+        >
+          ?
+        </div>
       </div>
       <div className="flex-1 w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -47,7 +53,7 @@ export default function BandwidthChart() {
                 borderRadius: '4px',
                 color: 'var(--text-primary)',
               }}
-              labelFormatter={(l: string) => new Date(l).toLocaleTimeString()}
+              labelFormatter={(l: any) => new Date(l).toLocaleTimeString()}
             />
             <Area type="monotone" dataKey="in" stroke="var(--accent)" strokeWidth={1.5} fillOpacity={1} fill="url(#bandGrad)" isAnimationActive={false} />
           </AreaChart>
