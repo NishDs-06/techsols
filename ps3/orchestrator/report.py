@@ -1,14 +1,14 @@
 import httpx, asyncio, json, logging, os
 logger = logging.getLogger(__name__)
 
-_report_generated = False  # only one PDF per session
+_generated_ids = set()  # track which incidents already have PDFs
 
 async def generate_incident_report(incident: dict) -> str:
-    global _report_generated
-    if _report_generated:
-        logger.info("Report already generated this session — skipping")
+    inc_id = incident.get("incident_id", "")
+    if inc_id in _generated_ids:
+        logger.info(f"Report already generated for {inc_id} — skipping")
         return None
-    _report_generated = True
+    _generated_ids.add(inc_id)
 
     prompt = f"""Write a short SRE postmortem report for this incident:
 {json.dumps(incident, indent=2)}
