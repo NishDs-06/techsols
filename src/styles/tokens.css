@@ -1,0 +1,18 @@
+:root {
+  --bg-base:        #0A0A0B;
+  --bg-surface:     #111114;
+  --bg-elevated:    #18181D;
+  --border:         #2A2A32;
+  --text-primary:   #F2F0E8;
+  --text-muted:     #8A8890;
+
+  --status-normal:     #9CA3AF;
+  --status-warning:    #F59E0B;
+  --status-critical:   #D97706;
+  --status-root:       #DC2626;
+  --status-recovering: #3B82F6;
+  --status-recovered:  #16A34A;
+
+  --accent:         #00E5A0;
+  --accent-breach:  #E84040;
+}
