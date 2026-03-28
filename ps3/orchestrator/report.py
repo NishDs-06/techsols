@@ -1,41 +1,34 @@
-import httpx, json, logging, os
+import httpx, asyncio, json, logging, os
 logger = logging.getLogger(__name__)
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-_done = False  # only ONE Gemini call ever, for the whole process lifetime
+_report_generated = False  # only one PDF per session
 
 async def generate_incident_report(incident: dict) -> str:
-    global _done
-    if _done:
+    global _report_generated
+    if _report_generated:
         logger.info("Report already generated this session — skipping")
         return None
-    _done = True  # set immediately so no parallel task can slip through
+    _report_generated = True
 
-    prompt = f"""You are an SRE writing a blameless postmortem report.
-
-Incident data:
+    prompt = f"""Write a short SRE postmortem report for this incident:
 {json.dumps(incident, indent=2)}
 
-Write a concise incident report with these sections:
-1. Summary (2 sentences)
-2. Timeline (injected to detected to remediated to recovered, with durations)
-3. Root Cause (what failed and why)
-4. Impact (which services, metric deltas)
-5. Remediation Taken
-6. SLA Status (met or breached)
-7. Follow-up Actions (2-3 bullet points)
-
-Keep it factual. No blame. Use the exact numbers from the incident data."""
+Sections: Summary, Timeline, Root Cause, Impact, Remediation, SLA Status, Follow-up Actions.
+Be concise. Use exact numbers from the data."""
 
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        logger.info("Calling Ollama llama3.1:8b for report — this may take a few minutes...")
+        async with httpx.AsyncClient() as client:
             r = await client.post(
-                f"{GEMINI_URL}?key={GEMINI_API_KEY}",
-                json={"contents": [{"parts": [{"text": prompt}]}]},
+                "http://100.109.131.90:11434/api/generate",
+                json={
+                    "model": "llama3.1:8b",
+                    "prompt": prompt,
+                    "stream": False
+                },
+                timeout=300  # 5 min timeout for slow laptop
             )
-        r.raise_for_status()
-        text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            text = r.json()["response"]
 
         from reportlab.lib.pagesizes import A4
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
@@ -44,16 +37,18 @@ Keep it factual. No blame. Use the exact numbers from the incident data."""
         filename = f"/tmp/incident_{incident['incident_id'].replace(':', '-')}.pdf"
         doc = SimpleDocTemplate(filename, pagesize=A4)
         styles = getSampleStyleSheet()
-        story = [
-            Paragraph("Incident Report", styles['Title']),
-            Paragraph(incident['incident_id'], styles['Normal']),
-            Spacer(1, 12),
-        ]
+        story = []
+        story.append(Paragraph("Incident Postmortem Report", styles['Title']))
+        story.append(Paragraph(incident['incident_id'], styles['Normal']))
+        story.append(Spacer(1, 12))
         for line in text.split('\n'):
             if line.strip():
-                style = styles['Heading2'] if (line.strip()[0].isdigit() and '.' in line[:3]) else styles['Normal']
-                story += [Paragraph(line.strip(), style), Spacer(1, 4)]
-
+                if line.strip()[0].isdigit() and '.' in line[:3]:
+                    story.append(Spacer(1, 8))
+                    story.append(Paragraph(line.strip(), styles['Heading2']))
+                else:
+                    story.append(Paragraph(line.strip(), styles['Normal']))
+                story.append(Spacer(1, 4))
         doc.build(story)
         logger.info(f"PDF saved: {filename}")
         return filename
