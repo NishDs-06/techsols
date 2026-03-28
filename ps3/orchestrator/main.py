@@ -13,6 +13,7 @@ from graph import SERVICE_GRAPH
 from rca import identify_root_cause, get_impact_path
 from remediation import remediate
 from collectors import collect_all_features
+from report import generate_incident_report
 import state
 
 logging.basicConfig(level=logging.INFO)
@@ -188,6 +189,10 @@ async def orchestrator_loop():
 
                     await broadcast({**state.latest_incident, "type": "incident"})
                     logger.info(f"System recovered in {actual}s")
+                    # Generate PDF postmortem in background
+                    asyncio.create_task(
+                        generate_incident_report(dict(state.latest_incident))
+                    )
                 last_root = None
 
         except Exception as e:
